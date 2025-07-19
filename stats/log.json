@@ -133,5 +133,14 @@
     "data": {
       "callback_data": "back_to_start"
     }
+  },
+  {
+    "event_type": "button",
+    "username": "endermanik13",
+    "user_id": 7827591453,
+    "timestamp": "2025-07-19T22:07:34.890091",
+    "data": {
+      "callback_data": "library"
+    }
   }
 ]
