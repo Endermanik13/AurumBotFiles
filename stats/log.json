@@ -43,5 +43,14 @@
     "data": {
       "command": "start"
     }
+  },
+  {
+    "event_type": "button",
+    "username": "endermanik13",
+    "user_id": 7827591453,
+    "timestamp": "2025-07-19T21:57:46.912985",
+    "data": {
+      "callback_data": "library"
+    }
   }
 ]
