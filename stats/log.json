@@ -169,5 +169,14 @@
     "data": {
       "command": "info"
     }
+  },
+  {
+    "event_type": "button",
+    "username": "endermanik13",
+    "user_id": 7827591453,
+    "timestamp": "2025-07-19T22:07:52.175443",
+    "data": {
+      "callback_data": "manage"
+    }
   }
 ]
