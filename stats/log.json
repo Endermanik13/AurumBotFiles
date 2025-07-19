@@ -34,5 +34,14 @@
     "data": {
       "callback_data": "back_to_start"
     }
+  },
+  {
+    "event_type": "message",
+    "username": "endermanik13",
+    "user_id": 7827591453,
+    "timestamp": "2025-07-19T21:57:34.732268",
+    "data": {
+      "command": "start"
+    }
   }
 ]
