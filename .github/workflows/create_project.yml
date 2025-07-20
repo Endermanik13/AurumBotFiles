@@ -25,22 +25,17 @@ jobs:
 
       - name: Create ZIP archive
         run: |
-          zip -r "$PROJECT_NAME.zip" "$PROJECT_NAME/Итог" "$PROJECT_NAME/other"
+          zip -r "$PROJECT_NAME/Инферно.zip" "$PROJECT_NAME/Итог" "$PROJECT_NAME/other"
+          git add "$PROJECT_NAME/Инферно.zip"
         env:
           PROJECT_NAME: ${{ github.event.client_payload.project_name }}
-
-      - name: Upload ZIP as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: "${{ github.event.client_payload.project_name }}-archive"
-          path: "${{ github.event.client_payload.project_name }}.zip"
 
       - name: Commit changes
         run: |
           git config user.name "Endermanik13"
           git config user.email "endermanik13@example.com"
           git add .
-          git commit -m "Create project folder: $PROJECT_NAME with project.json and Итог"
+          git commit -m "Create project folder: $PROJECT_NAME with project.json, Итог, and ZIP"
           git push origin main
         env:
           PROJECT_NAME: ${{ github.event.client_payload.project_name }}
