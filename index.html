@@ -118,11 +118,11 @@
             margin-top: 20px;
             font-size: 14px;
         }
-        #response a {
+        #response a, #error a {
             color: #007bff;
             text-decoration: none;
         }
-        #response a:hover {
+        #response a:hover, #error a:hover {
             text-decoration: underline;
         }
         #previewSection img {
@@ -228,6 +228,7 @@
             <div id="loadingSection">
                 <div id="progressBar"><div id="progress"></div></div>
                 <div id="progressText">0% (0/5 этапа)</div>
+                <button id="cancelButton" onclick="showSection('previewSection', ['loadingSection']); document.getElementById('createButton').disabled = false; document.getElementById('createButton').classList.remove('hidden');">Вернуться назад</button>
             </div>
             <div id="completedSection">
                 <p id="response"></p>
@@ -432,7 +433,7 @@
             if (!confirm(`Удалить проект "${projectName}"?`)) return;
             addLog(`Удаление проекта ${projectName}...`);
             try {
-                const jsonResponse = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/projects/${projectName}.json`, {
+                const jsonResponse = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/projects/${encodeURIComponent(projectName)}.json`, {
                     method: 'DELETE',
                     headers: {
                         'Authorization': `Bearer ${githubToken}`,
@@ -440,7 +441,7 @@
                     },
                     body: JSON.stringify({
                         message: `Delete project ${projectName}.json`,
-                        sha: (await (await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/projects/${projectName}.json`, {
+                        sha: (await (await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/projects/${encodeURIComponent(projectName)}.json`, {
                             headers: { 'Authorization': `Bearer ${githubToken}`, 'Accept': 'application/vnd.github.v3+json' }
                         })).json()).sha
                     })
@@ -450,7 +451,7 @@
                     return;
                 }
 
-                const folderResponse = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/${projectName}`, {
+                const folderResponse = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/${encodeURIComponent(projectName)}`, {
                     method: 'DELETE',
                     headers: {
                         'Authorization': `Bearer ${githubToken}`,
@@ -458,7 +459,7 @@
                     },
                     body: JSON.stringify({
                         message: `Delete project folder ${projectName}`,
-                        sha: (await (await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/${projectName}`, {
+                        sha: (await (await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/${encodeURIComponent(projectName)}`, {
                             headers: { 'Authorization': `Bearer ${githubToken}`, 'Accept': 'application/vnd.github.v3+json' }
                         })).json()).sha
                     })
@@ -662,7 +663,7 @@
                 // Step 4: Poll for workflow completion
                 let workflowCompleted = false;
                 let workflowId = null;
-                for (let i = 0; i < 30; i++) {
+                for (let i = 0; i < 45; i++) {
                     const runsResponse = await fetch('https://api.github.com/repos/Endermanik13/AurumBotFiles/actions/runs', {
                         headers: {
                             'Authorization': `Bearer ${githubToken}`,
@@ -670,7 +671,7 @@
                         }
                     });
                     if (runsResponse.status !== 200) {
-                        if (responseDiv) responseDiv.innerText = `Ошибка проверки workflow: ${runsResponse.statusText}`;
+                        if (responseDiv) responseDiv.innerText = `Ошибка проверки workflow: ${runsResponse.statusText}. <a href="https://github.com/Endermanik13/AurumBotFiles/actions" target="_blank">Проверить логи Actions</a>`;
                         addLog(`Ошибка проверки workflow: ${runsResponse.statusText}`);
                         showSection('previewSection', ['loadingSection']);
                         if (createButton) {
@@ -691,8 +692,19 @@
                             }
                         });
                         const runData = await runStatus.json();
-                        if (runData.status === 'completed' && runData.conclusion === 'success') {
-                            workflowCompleted = true;
+                        if (runData.status === 'completed') {
+                            if (runData.conclusion === 'success') {
+                                workflowCompleted = true;
+                            } else {
+                                if (responseDiv) responseDiv.innerHTML = `Ошибка: Workflow завершился с ошибкой (${runData.conclusion}). <a href="https://github.com/Endermanik13/AurumBotFiles/actions/runs/${workflowId}" target="_blank">Проверить логи Actions</a>`;
+                                addLog(`Ошибка: Workflow завершился с ошибкой (${runData.conclusion})`);
+                                showSection('previewSection', ['loadingSection']);
+                                if (createButton) {
+                                    createButton.disabled = false;
+                                    createButton.classList.remove('hidden');
+                                }
+                                return;
+                            }
                             break;
                         }
                     }
@@ -704,7 +716,7 @@
                 addLog('Workflow завершён');
 
                 if (!workflowCompleted) {
-                    if (responseDiv) responseDiv.innerText = 'Ошибка: Workflow не завершился вовремя.';
+                    if (responseDiv) responseDiv.innerHTML = `Ошибка: Workflow не завершился вовремя. <a href="https://github.com/Endermanik13/AurumBotFiles/actions" target="_blank">Проверить логи Actions</a>`;
                     addLog('Ошибка: Workflow не завершился вовремя');
                     showSection('previewSection', ['loadingSection']);
                     if (createButton) {
@@ -726,7 +738,7 @@
                 }
                 addLog(`Проект "${projectName}" создан, ZIP: ${zipDownloadUrl}`);
             } catch (error) {
-                if (responseDiv) responseDiv.innerText = `Ошибка: ${error.message}`;
+                if (responseDiv) responseDiv.innerHTML = `Ошибка: ${error.message}. <a href="https://github.com/Endermanik13/AurumBotFiles/actions" target="_blank">Проверить логи Actions</a>`;
                 addLog(`Ошибка: ${error.message}`);
                 showSection('previewSection', ['loadingSection']);
                 if (createButton) {
