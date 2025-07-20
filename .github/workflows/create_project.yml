@@ -26,7 +26,7 @@ jobs:
           else
             mkdir -p "${PROJECT_NAME}/Итог" "${PROJECT_NAME}/other"
             python create_project_json.py "${PROJECT_NAME}" "$FILE_METADATA"
-            zip -r "${PROJECT_NAME}/Инферно.zip" "${PROJECT_NAME}/Итог" "${PROJECT_NAME}/other"
+            zip -r "${PROJECT_NAME}/{PROJECT_NAME}.zip" "${PROJECT_NAME}/Итог" "${PROJECT_NAME}/other"
           fi
         env:
           PROJECT_NAME: ${{ github.event.client_payload.project_name }}
