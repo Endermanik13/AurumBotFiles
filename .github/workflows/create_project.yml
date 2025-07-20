@@ -16,13 +16,31 @@ jobs:
 
       - name: Create project folder structure
         run: |
-          mkdir -p "$PROJECT_NAME/paint.net" "$PROJECT_NAME/other"
+          mkdir -p "$PROJECT_NAME/paint.net" "$PROJECT_NAME/other" "$PROJECT_NAME/Итог"
           touch "$PROJECT_NAME/preview.png"
           python create_project_json.py "$PROJECT_NAME"
+        env:
+          PROJECT_NAME: ${{ github.event.client_payload.project_name }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create ZIP archive
+        run: |
+          zip -r "$PROJECT_NAME.zip" "$PROJECT_NAME"
+        env:
+          PROJECT_NAME: ${{ github.event.client_payload.project_name }}
+
+      - name: Upload ZIP as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: "${{ github.event.client_payload.project_name }}-archive"
+          path: "${{ github.event.client_payload.project_name }}.zip"
+
+      - name: Commit changes
+        run: |
           git config user.name "Endermanik13"
           git config user.email "endermanik13@example.com"
           git add .
-          git commit -m "Create project folder: $PROJECT_NAME with project.json"
+          git commit -m "Create project folder: $PROJECT_NAME with project.json and Итог"
           git push origin main
         env:
           PROJECT_NAME: ${{ github.event.client_payload.project_name }}
