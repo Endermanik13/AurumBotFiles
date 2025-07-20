@@ -107,7 +107,7 @@
             border: none;
             border-radius: 6px;
             cursor: pointer;
-            width: calc(50% - 24px);
+            width: calc(33.33% - 24px);
             transition: background 0.2s, transform 0.1s;
         }
         button:hover {
@@ -127,6 +127,12 @@
         }
         #loginButton:hover {
             background: #0056b3;
+        }
+        #copyLinkButton {
+            background: #17a2b8;
+        }
+        #copyLinkButton:hover {
+            background: #138496;
         }
         #response, #error {
             margin-top: 20px;
@@ -269,6 +275,7 @@
                 <p id="response"></p>
                 <button onclick="resetForm()">Загрузить ещё</button>
                 <button onclick="downloadZip()">Скачать</button>
+                <button onclick="copyDownloadLink()">Скопировать</button>
                 <button onclick="showSection('projectManagementSection', ['completedSection'])">Управление проектами</button>
             </div>
         </div>
@@ -435,6 +442,7 @@
                         showSection('projectManagementSection', ['loginForm', 'projectForm', 'previewSection', 'loadingSection', 'completedSection']);
                         errorDiv.innerText = '';
                         addLog('Успешная авторизация: Endermanik13');
+                        await createProjectsFolder();
                         loadProjectList();
                     } else {
                         errorDiv.innerText = 'Недействительный токен: не авторизован для Endermanik13.';
@@ -449,6 +457,38 @@
                 addLog(`Ошибка авторизации: ${error.message}`);
             } finally {
                 loginButton.disabled = false;
+            }
+        }
+
+        async function createProjectsFolder() {
+            try {
+                const checkResponse = await fetch('https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/projects', {
+                    headers: {
+                        'Authorization': `Bearer ${githubToken}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                if (checkResponse.status === 404) {
+                    addLog('Папка projects не существует, создаём...');
+                    const createResponse = await fetch('https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/projects/.gitkeep', {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `Bearer ${githubToken}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        },
+                        body: JSON.stringify({
+                            message: 'Create projects folder with .gitkeep',
+                            content: btoa('')
+                        })
+                    });
+                    if (createResponse.status === 201) {
+                        addLog('Папка projects успешно создана');
+                    } else {
+                        addLog(`Ошибка создания папки projects: ${createResponse.statusText}`);
+                    }
+                }
+            } catch (error) {
+                addLog(`Ошибка проверки/создания папки projects: ${error.message}`);
             }
         }
 
@@ -470,7 +510,7 @@
                     const contents = await response.json();
                     const ul = document.getElementById('projects');
                     if (!ul) return;
-                    if (contents.length === 0) {
+                    if (contents.length === 0 || (contents.length === 1 && contents[0].name === '.gitkeep')) {
                         ul.innerHTML = '<li>Нет проектов</li>';
                         addLog('Папка projects пуста');
                     } else {
@@ -493,8 +533,9 @@
                         addLog('Загружен список проектов');
                     }
                 } else if (response.status === 404) {
+                    await createProjectsFolder();
                     projectList.innerHTML = '<h3>Существующие проекты</h3><ul id="projects"><li>Нет проектов</li></ul>';
-                    addLog('Папка projects пуста или отсутствует');
+                    addLog('Папка projects отсутствует, создана пустая');
                 } else {
                     addLog(`Ошибка загрузки проектов: ${response.statusText}`);
                 }
@@ -507,6 +548,56 @@
             if (!confirm(`Удалить проект "${projectName}"?`)) return;
             addLog(`Удаление проекта ${projectName}...`);
             try {
+                // Step 1: Delete project folder contents recursively
+                const folderContents = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/${encodeURIComponent(projectName)}`, {
+                    headers: {
+                        'Authorization': `Bearer ${githubToken}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                if (folderContents.status === 200) {
+                    const contents = await folderContents.json();
+                    for (const item of contents) {
+                        const deleteResponse = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/${encodeURIComponent(projectName)}/${encodeURIComponent(item.name)}`, {
+                            method: 'DELETE',
+                            headers: {
+                                'Authorization': `Bearer ${githubToken}`,
+                                'Accept': 'application/vnd.github.v3+json'
+                            },
+                            body: JSON.stringify({
+                                message: `Delete ${item.name} from ${projectName}`,
+                                sha: item.sha
+                            })
+                        });
+                        if (deleteResponse.status !== 200) {
+                            addLog(`Ошибка удаления ${item.name} из ${projectName}: ${deleteResponse.statusText}`);
+                            return;
+                        }
+                    }
+                    addLog(`Содержимое папки ${projectName} удалено`);
+                } else if (folderContents.status !== 404) {
+                    addLog(`Ошибка доступа к папке ${projectName}: ${folderContents.statusText}`);
+                    return;
+                }
+
+                // Step 2: Delete project folder
+                const folderResponse = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/${encodeURIComponent(projectName)}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${githubToken}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    },
+                    body: JSON.stringify({
+                        message: `Delete project folder ${projectName}`,
+                        sha: folderContents.status === 200 ? (await folderContents.json()).sha : null
+                    })
+                });
+                if (folderResponse.status !== 200 && folderResponse.status !== 404) {
+                    addLog(`Ошибка удаления папки ${projectName}: ${folderResponse.statusText}`);
+                    return;
+                }
+
+                // Step 3: Delete JSON file
                 const jsonResponse = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/projects/${encodeURIComponent(projectName)}.json`, {
                     method: 'DELETE',
                     headers: {
@@ -520,33 +611,16 @@
                         })).json()).sha
                     })
                 });
-                if (jsonResponse.status !== 200) {
+                if (jsonResponse.status !== 200 && jsonResponse.status !== 404) {
                     addLog(`Ошибка удаления ${projectName}.json: ${jsonResponse.statusText}`);
-                    return;
-                }
-
-                const folderResponse = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/${encodeURIComponent(projectName)}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${githubToken}`,
-                        'Accept': 'application/vnd.github.v3+json'
-                    },
-                    body: JSON.stringify({
-                        message: `Delete project folder ${projectName}`,
-                        sha: (await (await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/${encodeURIComponent(projectName)}`, {
-                            headers: { 'Authorization': `Bearer ${githubToken}`, 'Accept': 'application/vnd.github.v3+json' }
-                        })).json()).sha
-                    })
-                });
-                if (folderResponse.status !== 200) {
-                    addLog(`Ошибка удаления папки ${projectName}: ${folderResponse.statusText}`);
                     return;
                 }
 
                 addLog(`Проект ${projectName} удалён`);
                 loadProjectList();
             } catch (error) {
-                addLog(`Ошибка удаления проекта: ${error.message}`);
+                addLog(`Ошибка удаления проекта ${projectName}: ${error.message}`);
+                showSection('projectManagementSection', ['loadingSection', 'previewSection', 'projectForm', 'completedSection', 'loginForm']);
             }
         }
 
@@ -831,6 +905,19 @@
             if (zipDownloadUrl) {
                 window.open(zipDownloadUrl, '_blank');
                 addLog('Скачивание ZIP...');
+            } else {
+                addLog('Ошибка: URL для скачивания ZIP не задан');
+            }
+        }
+
+        async function copyDownloadLink() {
+            if (zipDownloadUrl) {
+                try {
+                    await navigator.clipboard.writeText(zipDownloadUrl);
+                    addLog('Ссылка на скачивание скопирована в буфер обмена');
+                } catch (error) {
+                    addLog(`Ошибка копирования ссылки: ${error.message}`);
+                }
             } else {
                 addLog('Ошибка: URL для скачивания ZIP не задан');
             }
