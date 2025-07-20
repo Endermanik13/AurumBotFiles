@@ -13,9 +13,8 @@ project = {
         "download_url": f"https://raw.githubusercontent.com/Endermanik13/AurumBotFiles/main/{project_name}/preview.png"
     },
     "paint_files": [],
-    "other_files": []
+    "other_files": [],
+    "final_files": []
 }
-
-# Write to project.json
 with open(f"{project_name}/project.json", "w") as f:
     json.dump(project, f, indent=4)
