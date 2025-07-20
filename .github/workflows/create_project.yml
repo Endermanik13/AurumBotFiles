@@ -20,21 +20,20 @@ jobs:
         run: |
           mkdir -p "$PROJECT_NAME/paint.net" "$PROJECT_NAME/other"
           touch "$PROJECT_NAME/preview.png"
-          
+
           # Create project.json with metadata
           python -c "
 import json
-import os
 project = {
     'name': '$PROJECT_NAME',
-    'preview': {'path': 'preview.png', 'size_mb': 0, 'download_url': ''},
+    'preview': {'path': 'preview.png', 'size_mb': 0, 'download_url': 'https://raw.githubusercontent.com/Endermanik13/AurumBotFiles/main/$PROJECT_NAME/preview.png'},
     'paint_files': [],
     'other_files': []
 }
 with open('$PROJECT_NAME/project.json', 'w') as f:
     json.dump(project, f, indent=4)
-"
-          
+          "
+
           # Commit changes
           git config user.name "Endermanik13"
           git config user.email "endermanik13@example.com"
