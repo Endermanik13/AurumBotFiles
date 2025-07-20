@@ -457,8 +457,7 @@
                         'Accept': 'application/vnd.github.v3+json'
                     },
                     body: JSON.stringify({
-                        message: `Delete project folder ${project_avail
-                        projectName}`,
+                        message: `Delete project folder ${projectName}`,
                         sha: (await (await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/${projectName}`, {
                             headers: { 'Authorization': `Bearer ${githubToken}`, 'Accept': 'application/vnd.github.v3+json' }
                         })).json()).sha
@@ -551,7 +550,7 @@
 
             // Check for duplicate project
             try {
-                const projectCheck = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/projects/${projectName}.json`, {
+                const projectCheck = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/projects/${encodeURIComponent(projectName)}.json`, {
                     headers: {
                         'Authorization': `Bearer ${githubToken}`,
                         'Accept': 'application/vnd.github.v3+json'
@@ -582,7 +581,7 @@
             try {
                 // Step 1: Process and upload files
                 const fileMetadata = [];
-                const onlyPaintFiles = projectFiles.every(f => f.name.endswith('.png') || f.name.endsWith('.pdn'));
+                const onlyPaintFiles = projectFiles.every(f => f.name.endsWith('.png') || f.name.endsWith('.pdn'));
                 for (const file of projectFiles) {
                     const reader = new FileReader();
                     reader.readAsDataURL(file);
@@ -590,7 +589,7 @@
                     const base64Content = reader.result.split(',')[1];
                     const path = file.webkitRelativePath || file.name;
                     const isPaintFile = path.endsWith('.png') || path.endsWith('.pdn');
-                    const uploadPath = onlyPaintFiles ? `${projectName}/${path}` : `${projectName}/${isPaintFile ? 'Итог' : 'other'}/${path}`;
+                    const uploadPath = onlyPaintFiles ? `${encodeURIComponent(projectName)}/${encodeURIComponent(path)}` : `${encodeURIComponent(projectName)}/${isPaintFile ? 'Итог' : 'other'}/${encodeURIComponent(path)}`;
                     const uploadResponse = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/${uploadPath}`, {
                         method: 'PUT',
                         headers: {
@@ -720,12 +719,10 @@
                 if (progressText) progressText.innerText = '100% (5/5 этапа)';
                 addLog('Проект готов');
                 showSection('completedSection', ['loadingSection']);
-                zipDownloadUrl = `https://raw.githubusercontent.com/Endermanik13/AurumBotFiles/main/${projectName}/Инферно.zip`;
+                zipDownloadUrl = `https://raw.githubusercontent.com/Endermanik13/AurumBotFiles/main/${encodeURIComponent(projectName)}/Инферно.zip`;
                 if (responseDiv) {
-                    responseDiv.innerHTML = `
-                        Проект "${projectName}" успешно создан!<br>
-                        Местоположение: <a href="https://github.com/Endermanik13/AurumBotFiles/tree/main/${projectName}" target="_blank">github.com/Endermanik13/AurumBotFiles/tree/main/${projectName}</a>
-                    `;
+                    responseDiv.innerHTML = `Проект "${projectName}" успешно создан!<br>
+                                            Местоположение: <a href="https://github.com/Endermanik13/AurumBotFiles/tree/main/${encodeURIComponent(projectName)}" target="_blank">github.com/Endermanik13/AurumBotFiles/tree/main/${projectName}</a>`;
                 }
                 addLog(`Проект "${projectName}" создан, ZIP: ${zipDownloadUrl}`);
             } catch (error) {
@@ -740,8 +737,10 @@
         }
 
         function downloadZip() {
-            window.open(zipDownloadUrl, '_blank');
-            addLog('Скачивание ZIP...');
+            if (zipDownloadUrl) {
+                window.open(zipDownloadUrl, '_blank');
+                addLog('Скачивание ZIP...');
+            }
         }
 
         function resetForm() {
