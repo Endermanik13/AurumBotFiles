@@ -9,16 +9,37 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
       - name: Create project folder structure
         env:
           PROJECT_NAME: ${{ github.event.client_payload.project_name }}
         run: |
           mkdir -p "$PROJECT_NAME/paint.net" "$PROJECT_NAME/other"
           touch "$PROJECT_NAME/preview.png"
+          
+          # Create project.json with metadata
+          python -c "
+import json
+import os
+project = {
+    'name': '$PROJECT_NAME',
+    'preview': {'path': 'preview.png', 'size_mb': 0, 'download_url': ''},
+    'paint_files': [],
+    'other_files': []
+}
+with open('$PROJECT_NAME/project.json', 'w') as f:
+    json.dump(project, f, indent=4)
+"
+          
+          # Commit changes
           git config user.name "Endermanik13"
           git config user.email "endermanik13@example.com"
           git add .
-          git commit -m "Create project folder: $PROJECT_NAME"
+          git commit -m "Create project folder: $PROJECT_NAME with project.json"
           git push origin main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
