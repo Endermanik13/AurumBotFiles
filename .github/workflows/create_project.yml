@@ -26,7 +26,7 @@ jobs:
 import json
 project = {
     'name': '$PROJECT_NAME',
-    'preview': {'path': 'preview.png', 'size_mb': 0, 'download_url': 'https://raw.githubusercontent.com/Endermanik13/AurumBotFiles/main/$PROJECT_NAME/preview.png'},
+    'preview': {'path': 'preview.png', 'size_mb': 0, 'download_url': f'https://raw.githubusercontent.com/Endermanik13/AurumBotFiles/main/$PROJECT_NAME/preview.png'},
     'paint_files': [],
     'other_files': []
 }
