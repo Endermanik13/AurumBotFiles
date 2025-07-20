@@ -16,7 +16,7 @@ jobs:
 
       - name: Create project folder structure
         run: |
-          mkdir -p "$PROJECT_NAME/paint.net" "$PROJECT_NAME/other" "$PROJECT_NAME/Итог"
+          mkdir -p "$PROJECT_NAME/Итог" "$PROJECT_NAME/other"
           touch "$PROJECT_NAME/preview.png"
           python create_project_json.py "$PROJECT_NAME"
         env:
@@ -25,7 +25,7 @@ jobs:
 
       - name: Create ZIP archive
         run: |
-          zip -r "$PROJECT_NAME.zip" "$PROJECT_NAME"
+          zip -r "$PROJECT_NAME.zip" "$PROJECT_NAME/Итог" "$PROJECT_NAME/other"
         env:
           PROJECT_NAME: ${{ github.event.client_payload.project_name }}
 
