@@ -319,17 +319,15 @@
 
             responseDiv.innerText = 'Создание проекта...';
             progress.style.width = '0%';
-            progressText.innerText = '0% (0/3 этапа)';
+            progressText.innerText = '0% (0/4 этапа)';
 
             try {
-                // Simulate progress for 3 steps (create folder, commit, push)
-                for (let i = 1; i <= 3; i++) {
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                    progress.style.width = `${(i / 3) * 100}%`;
-                    progressText.innerText = `${Math.round((i / 3) * 100)}% (${i}/3 этапа)`;
-                }
-
-                const response = await fetch('https://api.github.com/repos/Endermanik13/AurumBotFiles/dispatches', {
+                // Step 1: Trigger workflow
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                progress.style.width = '25%';
+                progressText.innerText = '25% (1/4 этапа)';
+                
+                const dispatchResponse = await fetch('https://api.github.com/repos/Endermanik13/AurumBotFiles/dispatches', {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${githubToken}`,
@@ -341,11 +339,76 @@
                     })
                 });
 
-                if (response.status === 204) {
-                    responseDiv.innerHTML = `Проект "${projectName}" успешно создан! Местоположение: <a href="https://github.com/Endermanik13/AurumBotFiles/tree/main/${projectName}" target="_blank">github.com/Endermanik13/AurumBotFiles/tree/main/${projectName}</a>`;
-                } else {
-                    responseDiv.innerText = `Ошибка: ${response.statusText}`;
+                if (dispatchResponse.status !== 204) {
+                    responseDiv.innerText = `Ошибка запуска: ${dispatchResponse.statusText}`;
+                    return;
                 }
+
+                // Step 2: Wait for workflow to start
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                progress.style.width = '50%';
+                progressText.innerText = '50% (2/4 этапа)';
+
+                // Step 3: Poll for workflow completion
+                let workflowCompleted = false;
+                let workflowId = null;
+                for (let i = 0; i < 30; i++) { // Poll for up to 60 seconds
+                    const runsResponse = await fetch('https://api.github.com/repos/Endermanik13/AurumBotFiles/actions/runs', {
+                        headers: {
+                            'Authorization': `Bearer ${githubToken}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    });
+                    const runs = await runsResponse.json();
+                    const run = runs.workflow_runs.find(r => r.event === 'repository_dispatch' && r.status !== 'completed');
+                    if (run) {
+                        workflowId = run.id;
+                    } else if (workflowId) {
+                        const runStatus = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/actions/runs/${workflowId}`, {
+                            headers: {
+                                'Authorization': `Bearer ${githubToken}`,
+                                'Accept': 'application/vnd.github.v3+json'
+                            }
+                        });
+                        const runData = await runStatus.json();
+                        if (runData.status === 'completed' && runData.conclusion === 'success') {
+                            workflowCompleted = true;
+                            break;
+                        }
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+
+                progress.style.width = '75%';
+                progressText.innerText = '75% (3/4 этапа)';
+
+                if (!workflowCompleted) {
+                    responseDiv.innerText = 'Ошибка: Workflow не завершился вовремя.';
+                    return;
+                }
+
+                // Step 4: Get artifact download URL
+                const artifactsResponse = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/actions/runs/${workflowId}/artifacts`, {
+                    headers: {
+                        'Authorization': `Bearer ${githubToken}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                const artifacts = await artifactsResponse.json();
+                const artifact = artifacts.artifacts.find(a => a.name === `${projectName}-archive`);
+                if (!artifact) {
+                    responseDiv.innerText = 'Ошибка: Не удалось найти архив проекта.';
+                    return;
+                }
+
+                progress.style.width = '100%';
+                progressText.innerText = '100% (4/4 этапа)';
+
+                responseDiv.innerHTML = `
+                    Проект "${projectName}" успешно создан!<br>
+                    Местоположение: <a href="https://github.com/Endermanik13/AurumBotFiles/tree/main/${projectName}" target="_blank">github.com/Endermanik13/AurumBotFiles/tree/main/${projectName}</a><br>
+                    Скачать все файлы: <a href="${artifact.archive_download_url}" target="_blank">Скачать ZIP</a>
+                `;
             } catch (error) {
                 responseDiv.innerText = `Ошибка: ${error.message}`;
             }
