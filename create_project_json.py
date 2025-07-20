@@ -2,7 +2,7 @@ import json
 import sys
 import os
 
-# Get project name and file metadata from command-line arguments
+# Get project name and file metadata
 project_name = sys.argv[1] if len(sys.argv) > 1 else "default_project"
 file_metadata = json.loads(sys.argv[2]) if len(sys.argv) > 2 else []
 
@@ -19,6 +19,7 @@ project = {
     "final_files": file_metadata
 }
 
-# Write to project.json
-with open(f"{project_name}/project.json", "w") as f:
+# Save to projects/ directory
+os.makedirs("projects", exist_ok=True)
+with open(f"projects/{project_name}.json", "w") as f:
     json.dump(project, f, indent=4)
