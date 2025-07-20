@@ -1,0 +1,24 @@
+name: Create Project Folder
+on:
+  repository_dispatch:
+    types: [create-project]
+jobs:
+  create-folder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create project folder structure
+        env:
+          PROJECT_NAME: ${{ github.event.client_payload.project_name }}
+        run: |
+          mkdir -p "$PROJECT_NAME/paint.net" "$PROJECT_NAME/other"
+          touch "$PROJECT_NAME/preview.png"
+          git config user.name "Endermanik13"
+          git config user.email "endermanik13@example.com"
+          git add .
+          git commit -m "Create project folder: $PROJECT_NAME"
+          git push origin main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
