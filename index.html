@@ -170,7 +170,7 @@
                 <input type="text" id="projectName" placeholder="Введите название проекта" required>
                 <label for="paintFiles">Файлы Paint.net:</label>
                 <div class="file-drop" id="paintDrop" ondragover="event.preventDefault();" ondrop="handleDrop(event, 'paintFiles')" ondragenter="this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')">
-                    Перетащите файлы Paint.net сюда или кликните для выбора
+                    Перечисли файлы Paint.net сюда или кликните для выбора
                 </div>
                 <input type="file" id="paintFiles" multiple style="display: none;">
                 <ul id="paintFilesList" class="file-list"></ul>
@@ -382,14 +382,50 @@
             createButton.classList.add('hidden');
             responseDiv.innerText = 'Создание проекта...';
             progress.style.width = '0%';
-            progressText.innerText = '0% (0/4 этапа)';
+            progressText.innerText = '0% (0/5 этапа)';
             addLog('Начато создание проекта');
 
             try {
-                // Step 1: Trigger workflow
+                // Step 1: Upload files to GitHub
+                const allFiles = [...paintFiles, ...otherFiles];
+                const fileMetadata = [];
+                for (const file of allFiles) {
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file);
+                    await new Promise(resolve => reader.onload = resolve);
+                    const base64Content = reader.result.split(',')[1];
+                    const uploadResponse = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/${projectName}/Итог/${file.name}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `Bearer ${githubToken}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        },
+                        body: JSON.stringify({
+                            message: `Add ${file.name} to ${projectName}/Итог`,
+                            content: base64Content
+                        })
+                    });
+                    if (uploadResponse.status !== 201) {
+                        responseDiv.innerText = `Ошибка загрузки ${file.name}: ${uploadResponse.statusText}`;
+                        addLog(`Ошибка загрузки ${file.name}: ${uploadResponse.statusText}`);
+                        createButton.disabled = false;
+                        createButton.classList.remove('hidden');
+                        return;
+                    }
+                    fileMetadata.push({
+                        path: file.name,
+                        size_mb: (file.size / (1024 * 1024)).toFixed(2),
+                        download_url: `https://raw.githubusercontent.com/Endermanik13/AurumBotFiles/main/${projectName}/Итог/${file.name}`
+                    });
+                    addLog(`Файл ${file.name} загружен в ${projectName}/Итог`);
+                }
+                progress.style.width = '20%';
+                progressText.innerText = '20% (1/5 этапа)';
+
+                // Step 2: Trigger workflow
                 await new Promise(resolve => setTimeout(resolve, 1000));
-                progress.style.width = '25%';
-                progressText.innerText = '25% (1/4 этапа)';
+                progress.style.width = '40%';
+                progressText.innerText = '40% (2/5 этапа)';
                 addLog('Запуск workflow...');
 
                 const dispatchResponse = await fetch('https://api.github.com/repos/Endermanik13/AurumBotFiles/dispatches', {
@@ -400,25 +436,28 @@
                     },
                     body: JSON.stringify({
                         event_type: 'create-project',
-                        client_payload: { project_name: projectName }
+                        client_payload: {
+                            project_name: projectName,
+                            file_metadata: JSON.stringify(fileMetadata)
+                        }
                     })
                 });
 
                 if (dispatchResponse.status !== 204) {
-                    responseDiv.innerText = `Ошибка запуска: ${dispatchResponse.statusText}`;
+                    responseDiv.innerText = `Ошибка запуска workflow: ${dispatchResponse.statusText}`;
                     addLog(`Ошибка запуска workflow: ${dispatchResponse.statusText}`);
                     createButton.disabled = false;
                     createButton.classList.remove('hidden');
                     return;
                 }
 
-                // Step 2: Wait for workflow to start
+                // Step 3: Wait for workflow to start
                 await new Promise(resolve => setTimeout(resolve, 2000));
-                progress.style.width = '50%';
-                progressText.innerText = '50% (2/4 этапа)';
+                progress.style.width = '60%';
+                progressText.innerText = '60% (3/5 этапа)';
                 addLog('Ожидание старта workflow...');
 
-                // Step 3: Poll for workflow completion
+                // Step 4: Poll for workflow completion
                 let workflowCompleted = false;
                 let workflowId = null;
                 for (let i = 0; i < 30; i++) { // Poll for up to 60 seconds
@@ -455,8 +494,8 @@
                     await new Promise(resolve => setTimeout(resolve, 2000));
                 }
 
-                progress.style.width = '75%';
-                progressText.innerText = '75% (3/4 этапа)';
+                progress.style.width = '80%';
+                progressText.innerText = '80% (4/5 этапа)';
                 addLog('Workflow завершён');
 
                 if (!workflowCompleted) {
@@ -467,40 +506,17 @@
                     return;
                 }
 
-                // Step 4: Get artifact download URL
-                const artifactsResponse = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/actions/runs/${workflowId}/artifacts`, {
-                    headers: {
-                        'Authorization': `Bearer ${githubToken}`,
-                        'Accept': 'application/vnd.github.v3+json'
-                    }
-                });
-                if (artifactsResponse.status !== 200) {
-                    responseDiv.innerText = 'Ошибка: Недостаточно прав для доступа к артефактам. Проверьте, включён ли scope "actions" в PAT.';
-                    addLog('Ошибка: Недостаточно прав для артефактов (нужен scope actions)');
-                    createButton.disabled = false;
-                    createButton.classList.remove('hidden');
-                    return;
-                }
-                const artifacts = await artifactsResponse.json();
-                const artifact = artifacts.artifacts.find(a => a.name === `${projectName}-archive`);
-                if (!artifact) {
-                    responseDiv.innerText = 'Ошибка: Не удалось найти архив проекта.';
-                    addLog('Ошибка: Архив проекта не найден');
-                    createButton.disabled = false;
-                    createButton.classList.remove('hidden');
-                    return;
-                }
-
+                // Step 5: Provide download link
                 progress.style.width = '100%';
-                progressText.innerText = '100% (4/4 этапа)';
-                addLog('Архив готов');
+                progressText.innerText = '100% (5/5 этапа)';
+                addLog('Проект готов');
 
                 responseDiv.innerHTML = `
                     Проект "${projectName}" успешно создан!<br>
                     Местоположение: <a href="https://github.com/Endermanik13/AurumBotFiles/tree/main/${projectName}" target="_blank">github.com/Endermanik13/AurumBotFiles/tree/main/${projectName}</a><br>
-                    Скачать все файлы: <a href="${artifact.archive_download_url}" target="_blank">Скачать ZIP</a>
+                    Скачать все файлы: <a href="https://raw.githubusercontent.com/Endermanik13/AurumBotFiles/main/${projectName}/Инферно.zip" target="_blank">Скачать ZIP</a>
                 `;
-                addLog(`Проект "${projectName}" создан, ссылка на ZIP: ${artifact.archive_download_url}`);
+                addLog(`Проект "${projectName}" создан, ссылка на ZIP: https://raw.githubusercontent.com/Endermanik13/AurumBotFiles/main/${projectName}/Инферно.zip`);
             } catch (error) {
                 responseDiv.innerText = `Ошибка: ${error.message}`;
                 addLog(`Ошибка: ${error.message}`);
