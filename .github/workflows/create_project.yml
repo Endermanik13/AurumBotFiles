@@ -16,26 +16,30 @@ jobs:
 
       - name: Create project folder structure
         run: |
-          mkdir -p "$PROJECT_NAME/Итог" "$PROJECT_NAME/other"
+          mkdir -p "$PROJECT_NAME" "projects"
           touch "$PROJECT_NAME/preview.png"
-          python create_project_json.py "$PROJECT_NAME"
+          # Check if only Paint.net files
+          ONLY_PAINT_FILES=$(echo "$FILE_METADATA" | python -c "import json, sys; files = json.loads(sys.stdin.read()); print('true' if all(f['path'].endswith(('.png', '.pdn')) for f in files) else 'false')")
+          if [ "$ONLY_PAINT_FILES" = "true" ]; then
+            python create_project_json.py "$PROJECT_NAME" "$FILE_METADATA"
+            zip -r "$PROJECT_NAME/Инферно.zip" "$PROJECT_NAME" -x "$PROJECT_NAME/preview.png"
+          else
+            mkdir -p "$PROJECT_NAME/Итог" "$PROJECT_NAME/other"
+            python create_project_json.py "$PROJECT_NAME" "$FILE_METADATA"
+            zip -r "$PROJECT_NAME/Инферно.zip" "$PROJECT_NAME/Итог" "$PROJECT_NAME/other"
+          fi
+          mv "projects/$PROJECT_NAME.json" "projects/$PROJECT_NAME.json"
         env:
           PROJECT_NAME: ${{ github.event.client_payload.project_name }}
+          FILE_METADATA: ${{ github.event.client_payload.file_metadata }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create ZIP archive
-        run: |
-          zip -r "$PROJECT_NAME/Инферно.zip" "$PROJECT_NAME/Итог" "$PROJECT_NAME/other"
-          git add "$PROJECT_NAME/Инферно.zip"
-        env:
-          PROJECT_NAME: ${{ github.event.client_payload.project_name }}
 
       - name: Commit changes
         run: |
           git config user.name "Endermanik13"
           git config user.email "endermanik13@example.com"
           git add .
-          git commit -m "Create project folder: $PROJECT_NAME with project.json, Итог, and ZIP"
+          git commit -m "Create project: $PROJECT_NAME with JSON and ZIP"
           git push origin main
         env:
           PROJECT_NAME: ${{ github.event.client_payload.project_name }}
