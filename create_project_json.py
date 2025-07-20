@@ -1,6 +1,5 @@
 import json
 import sys
-import os
 
 # Get project name from command-line argument
 project_name = sys.argv[1] if len(sys.argv) > 1 else "default_project"
