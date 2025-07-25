@@ -492,6 +492,40 @@
             }
         }
 
+        async function createDirectory(path) {
+            try {
+                const checkResponse = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/${encodeURIComponent(path)}`, {
+                    headers: {
+                        'Authorization': `Bearer ${githubToken}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                if (checkResponse.status === 404) {
+                    addLog(`Директория ${path} не существует, создаём...`);
+                    const createResponse = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/${encodeURIComponent(path)}/.gitkeep`, {
+                        method: 'PUT',
+                        headers: {
+                            'Authorization': `Bearer ${githubToken}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        },
+                        body: JSON.stringify({
+                            message: `Create directory ${path} with .gitkeep`,
+                            content: btoa('')
+                        })
+                    });
+                    if (createResponse.status === 201) {
+                        addLog(`Директория ${path} создана`);
+                    } else {
+                        addLog(`Ошибка создания директории ${path}: ${createResponse.statusText}`);
+                        throw new Error(`Failed to create directory ${path}: ${createResponse.statusText}`);
+                    }
+                }
+            } catch (error) {
+                addLog(`Ошибка создания директории ${path}: ${error.message}`);
+                throw error;
+            }
+        }
+
         async function loadProjectList() {
             const projectList = document.getElementById('projectList');
             if (!projectList) {
@@ -600,6 +634,9 @@
                         }
                     }
                     addLog(`Содержимое папки ${projectName} удалено`);
+                } else if (folderContents.status !== 404) {
+                    addLog(`Ошибка доступа к папке ${projectName}: ${folderContents.statusText}`);
+                    return;
                 }
 
                 const jsonResponse = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/projects/${encodeURIComponent(projectName)}.json`, {
@@ -741,11 +778,19 @@
             try {
                 const fileMetadata = [];
                 const isSingleZip = projectFiles.length === 1 && projectFiles[0].name.endsWith('.zip');
-                const onlyPaintFiles = !isSingleZip && projectFiles.every(f => f.name.toLowerCase().endsWith('.png') || f.name.toLowerCase().endsWith('.pdn'));
+                const onlyPaintFiles = !isSingleZip && projectFiles.every(f => f.name.toLowerCase().endsWith('.png') || f.name.toLowerCase().endswith('.pdn'));
                 if (previewFile) {
                     projectFiles = projectFiles.filter(f => f.name !== previewFile.name);
                     projectFiles.unshift(previewFile);
                 }
+
+                // Create project directory
+                await createDirectory(projectName);
+                if (!isSingleZip && !onlyPaintFiles) {
+                    await createDirectory(`${projectName}/Итог`);
+                    await createDirectory(`${projectName}/other`);
+                }
+
                 for (const file of projectFiles) {
                     const reader = new FileReader();
                     reader.readAsDataURL(file);
@@ -768,8 +813,9 @@
                         })
                     });
                     if (uploadResponse.status !== 201) {
-                        if (responseDiv) responseDiv.innerText = `Ошибка загрузки ${path}: ${uploadResponse.statusText}`;
-                        addLog(`Ошибка загрузки ${path}: ${uploadResponse.statusText}`);
+                        const errorDetails = await uploadResponse.json();
+                        if (responseDiv) responseDiv.innerText = `Ошибка загрузки ${path}: ${uploadResponse.statusText} (${JSON.stringify(errorDetails)})`;
+                        addLog(`Ошибка загрузки ${path}: ${uploadResponse.statusText} (${JSON.stringify(errorDetails)})`);
                         showSection('projectManagementSection', ['loadingSection']);
                         if (createButton) {
                             createButton.disabled = false;
