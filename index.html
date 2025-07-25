@@ -255,11 +255,11 @@
                 <button onclick="proceedToPreview()">Перейти к превью</button>
             </div>
             <div id="previewSection">
-                <label>Файл превью (автовыбор: арт.png/art.png, если есть):</label>
+                <label>Файл превью (обязателен, предпочтительно preview.png):</label>
                 <div id="previewInfo"></div>
                 <img id="previewImage" src="" alt="Превью" style="display: none;">
                 <div class="file-drop" id="previewDrop" ondragover="event.preventDefault();" ondrop="handleDrop(event, 'previewFile')" ondragenter="this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')">
-                    Перетащите новый файл превью (PNG) сюда или кликните для выбора
+                    Перетащите файл превью (PNG) сюда или кликните для выбора
                 </div>
                 <input type="file" id="previewFile" accept=".png" style="display: none;">
                 <ul id="previewFileList" class="file-list"></ul>
@@ -275,7 +275,7 @@
                 <p id="response"></p>
                 <button onclick="resetForm()">Загрузить ещё</button>
                 <button onclick="downloadZip()">Скачать</button>
-                <button onclick="copyDownloadLink()">Скопировать</button>
+                <button id="copyLinkButton" onclick="copyDownloadLink()">Скопировать</button>
                 <button onclick="showSection('projectManagementSection', ['completedSection'])">Управление проектами</button>
             </div>
         </div>
@@ -443,7 +443,7 @@
                         errorDiv.innerText = '';
                         addLog('Успешная авторизация: Endermanik13');
                         await createProjectsFolder();
-                        loadProjectList();
+                        await loadProjectList();
                     } else {
                         errorDiv.innerText = 'Недействительный токен: не авторизован для Endermanik13.';
                         addLog('Ошибка: Токен не для Endermanik13');
@@ -517,6 +517,32 @@
                         for (const item of contents) {
                             if (item.name.endsWith('.json')) {
                                 const projectName = item.name.replace('.json', '');
+                                const folderCheck = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/${encodeURIComponent(projectName)}`, {
+                                    headers: {
+                                        'Authorization': `Bearer ${githubToken}`,
+                                        'Accept': 'application/vnd.github.v3+json'
+                                    }
+                                });
+                                if (folderCheck.status === 404) {
+                                    addLog(`Папка ${projectName} не существует, удаляем ${item.name}`);
+                                    const deleteJsonResponse = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/projects/${encodeURIComponent(item.name)}`, {
+                                        method: 'DELETE',
+                                        headers: {
+                                            'Authorization': `Bearer ${githubToken}`,
+                                            'Accept': 'application/vnd.github.v3+json'
+                                        },
+                                        body: JSON.stringify({
+                                            message: `Delete orphaned JSON ${item.name}`,
+                                            sha: item.sha
+                                        })
+                                    });
+                                    if (deleteJsonResponse.status === 200) {
+                                        addLog(`JSON ${item.name} удалён`);
+                                    } else {
+                                        addLog(`Ошибка удаления ${item.name}: ${deleteJsonResponse.statusText}`);
+                                    }
+                                    continue;
+                                }
                                 const li = document.createElement('li');
                                 const link = document.createElement('a');
                                 link.href = `https://github.com/Endermanik13/AurumBotFiles/tree/main/${encodeURIComponent(projectName)}`;
@@ -525,7 +551,7 @@
                                 li.appendChild(link);
                                 const deleteBtn = document.createElement('button');
                                 deleteBtn.textContent = 'Удалить';
-                                deleteBtn.onclick = () => deleteProject(projectName);
+                                deleteBtn.onclick = () => deleteProject(projectName, item.sha);
                                 li.appendChild(deleteBtn);
                                 ul.appendChild(li);
                             }
@@ -544,7 +570,7 @@
             }
         }
 
-        async function deleteProject(projectName) {
+        async function deleteProject(projectName, jsonSha) {
             if (!confirm(`Удалить проект "${projectName}"?`)) return;
             addLog(`Удаление проекта ${projectName}...`);
             try {
@@ -574,25 +600,6 @@
                         }
                     }
                     addLog(`Содержимое папки ${projectName} удалено`);
-                } else if (folderContents.status !== 404) {
-                    addLog(`Ошибка доступа к папке ${projectName}: ${folderContents.statusText}`);
-                    return;
-                }
-
-                const folderResponse = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/${encodeURIComponent(projectName)}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${githubToken}`,
-                        'Accept': 'application/vnd.github.v3+json'
-                    },
-                    body: JSON.stringify({
-                        message: `Delete project folder ${projectName}`,
-                        sha: folderContents.status === 200 ? (await folderContents.json()).sha : null
-                    })
-                });
-                if (folderResponse.status !== 200 && folderResponse.status !== 404) {
-                    addLog(`Ошибка удаления папки ${projectName}: ${folderResponse.statusText}`);
-                    return;
                 }
 
                 const jsonResponse = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/projects/${encodeURIComponent(projectName)}.json`, {
@@ -603,9 +610,7 @@
                     },
                     body: JSON.stringify({
                         message: `Delete project ${projectName}.json`,
-                        sha: (await (await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/projects/${encodeURIComponent(projectName)}.json`, {
-                            headers: { 'Authorization': `Bearer ${githubToken}`, 'Accept': 'application/vnd.github.v3+json' }
-                        })).json()).sha
+                        sha: jsonSha
                     })
                 });
                 if (jsonResponse.status !== 200 && jsonResponse.status !== 404) {
@@ -614,7 +619,7 @@
                 }
 
                 addLog(`Проект ${projectName} удалён`);
-                loadProjectList();
+                await loadProjectList();
             } catch (error) {
                 addLog(`Ошибка удаления проекта ${projectName}: ${error.message}`);
                 showSection('projectManagementSection', ['loadingSection', 'previewSection', 'projectForm', 'completedSection', 'loginForm']);
@@ -660,7 +665,7 @@
             showSection('previewSection', ['projectForm', 'projectManagementSection', 'loginForm', 'loadingSection', 'completedSection']);
             const previewInfo = document.getElementById('previewInfo');
             if (!previewInfo) return;
-            const autoPreview = projectFiles.find(f => f.name.toLowerCase() === 'арт.png' || f.name.toLowerCase() === 'art.png');
+            const autoPreview = projectFiles.find(f => f.name.toLowerCase() === 'preview.png' || f.name.toLowerCase() === 'арт.png' || f.name.toLowerCase() === 'art.png');
             if (autoPreview) {
                 previewFile = autoPreview;
                 previewInfo.innerText = `Автовыбор превью: ${autoPreview.name}`;
@@ -676,7 +681,7 @@
                 reader.readAsDataURL(autoPreview);
                 addLog(`Автовыбор превью: ${autoPreview.name}`);
             } else {
-                previewInfo.innerText = 'Файл арт.png/art.png не найден. Загрузите файл превью.';
+                previewInfo.innerText = 'Файл preview.png/арт.png/art.png не найден. Загрузите файл превью.';
                 addLog('Превью не найдено, требуется загрузка');
             }
         }
@@ -736,7 +741,7 @@
             try {
                 const fileMetadata = [];
                 const isSingleZip = projectFiles.length === 1 && projectFiles[0].name.endsWith('.zip');
-                const onlyPaintFiles = !isSingleZip && projectFiles.every(f => f.name.endsWith('.png') || f.name.endsWith('.pdn'));
+                const onlyPaintFiles = !isSingleZip && projectFiles.every(f => f.name.toLowerCase().endsWith('.png') || f.name.toLowerCase().endsWith('.pdn'));
                 if (previewFile) {
                     projectFiles = projectFiles.filter(f => f.name !== previewFile.name);
                     projectFiles.unshift(previewFile);
@@ -747,7 +752,7 @@
                     await new Promise(resolve => reader.onload = resolve);
                     const base64Content = reader.result.split(',')[1];
                     const path = file.webkitRelativePath || file.name;
-                    const isPaintFile = path.endsWith('.png') || path.endsWith('.pdn');
+                    const isPaintFile = path.toLowerCase().endsWith('.png') || path.toLowerCase().endsWith('.pdn');
                     const uploadPath = isSingleZip ? `${encodeURIComponent(projectName)}/${encodeURIComponent(path)}` : 
                                       onlyPaintFiles ? `${encodeURIComponent(projectName)}/${encodeURIComponent(path)}` : 
                                       `${encodeURIComponent(projectName)}/${isPaintFile ? 'Итог' : 'other'}/${encodeURIComponent(path)}`;
