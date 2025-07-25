@@ -17,13 +17,12 @@ jobs:
       - name: Create project folder structure
         run: |
           mkdir -p "${PROJECT_NAME}" "projects"
-          # Check if preview.png exists in file_metadata
-          PREVIEW_EXISTS=$(echo "$FILE_METADATA" | python -c "import json, sys; files = json.loads(sys.stdin.read()); print('true' if any(f['path'] == 'preview.png' for f in files) else 'false')")
+          PREVIEW_EXISTS=$(echo "$FILE_METADATA" | python -c "import json, sys; files = json.loads(sys.stdin.read()); print('true' if any(f['path'].lower() == 'preview.png' for f in files) else 'false')")
           if [ "$PREVIEW_EXISTS" != "true" ]; then
             echo "Error: preview.png not provided"
             exit 1
           fi
-          ONLY_PAINT_FILES=$(echo "$FILE_METADATA" | python -c "import json, sys; files = json.loads(sys.stdin.read()); print('true' if all(f['path'].endswith(('.png', '.pdn')) for f in files if f['path'] != 'preview.png') else 'false')")
+          ONLY_PAINT_FILES=$(echo "$FILE_METADATA" | python -c "import json, sys; files = json.loads(sys.stdin.read()); print('true' if all(f['path'].lower().endswith(('.png', '.pdn')) for f in files if f['path'].lower() != 'preview.png') else 'false')")
           if [ "$ONLY_PAINT_FILES" = "true" ]; then
             python create_project_json.py "${PROJECT_NAME}" "$FILE_METADATA"
             zip -r "${PROJECT_NAME}/Инферно.zip" "${PROJECT_NAME}" -x "${PROJECT_NAME}/preview.png"
