@@ -63,7 +63,7 @@ jobs:
           if [ "$IS_SINGLE_ZIP" = "true" ]; then
             zip -r "${PROJECT_NAME}/Archive.zip" "${PROJECT_NAME}" || { echo "Failed to create ZIP"; exit 1; }
           elif [ "$ONLY_PAINT_FILES" = "true" ]; then
-            zip -r "${PROJECT_NAME}/Archive.zip" "${PROJECT_NAME}" -x "${PROJECT_NAME}/preview.png" "${PROJECT_NAME}/арт.png" "${PROJECT_NAME}/art.png" || { echo "Failed to create ZIP"; exit 1; }
+            zip -r "${PROJECT_NAME}/Archive.zip" "${PROJECT_NAME}" || { echo "Failed to create ZIP"; exit 1; }
           else
             mkdir -p "${PROJECT_NAME}/Итог" "${PROJECT_NAME}/other"
             mv "${PROJECT_NAME}"/*.png "${PROJECT_NAME}/Итог" 2>/dev/null || true
