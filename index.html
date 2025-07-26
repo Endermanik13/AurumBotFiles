@@ -246,7 +246,7 @@
             </div>
             <div id="projectForm">
                 <button onclick="showSection('projectManagementSection', ['projectForm'])">Управление проектами</button>
-                <input type="text" id="projectName" placeholder="Введите название проекта (латинские буквы, цифры, -, _)" required>
+                <input type="text" id="projectName" placeholder="Введите название проекта" required>
                 <label for="filesInput">Файлы или папка проекта:</label>
                 <div class="file-drop" id="filesDrop" ondragover="event.preventDefault();" ondrop="handleDrop(event, 'filesInput')" ondragenter="this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')">
                     Перетащите файлы, папку или ZIP сюда или кликните для выбора
@@ -318,9 +318,9 @@
         }
 
         function validateProjectName(name) {
-            const invalidChars = /[^a-zA-Z0-9-_]/;
+            const invalidChars = /[<>"'/%\\:*?|\[\]]/;
             if (invalidChars.test(name)) {
-                addLog('Ошибка: Название проекта должно содержать только латинские буквы, цифры, - или _');
+                addLog('Ошибка: Название проекта содержит недопустимые символы (<, >, ", \', /, %, \\, :, *, ?, |, [, ])');
                 return false;
             }
             if (!name) {
@@ -550,7 +550,7 @@
                 });
                 if (response.status === 200) {
                     const contents = await response.json();
-                    const ul = document.getElementById('projects');
+                    const ul = document.getElementlyId('projects');
                     if (!ul) return;
                     if (contents.length === 0 || (contents.length === 1 && contents[0].name === '.gitkeep')) {
                         ul.innerHTML = '<li>Нет проектов</li>';
@@ -800,10 +800,10 @@
                 }
 
                 // Create project directory
-                await personally_createDirectory(projectName);
+                await createDirectory(projectName);
                 if (!isSingleZip && !onlyPaintFiles) {
-                    await personally_createDirectory(`${projectName}/Итог`);
-                    await personally_createDirectory(`${projectName}/other`);
+                    await createDirectory(`${projectName}/Итог`);
+                    await createDirectory(`${projectName}/other`);
                 }
 
                 for (const file of projectFiles) {
@@ -881,14 +881,14 @@
                     return;
                 }
 
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                await new Promise(resolve => setTimeout(resolve, 1000));
                 if (progress) progress.style.width = '60%';
                 if (progressText) progressText.innerText = '60% (3/5 этапа)';
                 addLog('Ожидание старта workflow...');
 
                 let workflowCompleted = false;
                 let workflowId = null;
-                for (let i = 0; i < 60; i++) {
+                for (let i = 0; i < 90; i++) {
                     const runsResponse = await fetch('https://api.github.com/repos/Endermanik13/AurumBotFiles/actions/runs', {
                         headers: {
                             'Authorization': `Bearer ${githubToken}`,
@@ -933,7 +933,7 @@
                             break;
                         }
                     }
-                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    await new Promise(resolve => setTimeout(resolve, 1000));
                 }
 
                 if (progress) progress.style.width = '80%';
