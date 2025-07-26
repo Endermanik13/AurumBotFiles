@@ -804,8 +804,8 @@
 
             try {
                 const fileMetadata = [];
-                const isSingleZip = projectFiles.length === 1 && projectFiles[0] && projectFiles[0].name && projectFiles[0].name.endsWith('.zip');
-                const onlyPaintFiles = !isSingleZip && projectFiles.every(f => f && f.name && (f.name.toLowerCase().endswith('.png') || f.name.toLowerCase().endswith('.pdn')));
+                const isSingleZip = projectFiles.length === 1 && projectFiles[0] && projectFiles[0].name && projectFiles[0].name.toLowerCase().endsWith('.zip');
+                const onlyPaintFiles = !isSingleZip && projectFiles.every(f => f && f.name && (f.name.toLowerCase().endsWith('.png') || f.name.toLowerCase().endsWith('.pdn')));
 
                 if (previewFile) {
                     projectFiles = projectFiles.filter(f => f && f.name && f.name !== previewFile.name);
@@ -819,14 +819,17 @@
                 }
 
                 for (const file of projectFiles) {
-                    if (!file || !file.name) continue;
+                    if (!file || !file.name) {
+                        addLog(`Пропущен файл: объект файла не определён или отсутствует имя`);
+                        continue;
+                    }
                     const reader = new FileReader();
                     reader.readAsDataURL(file);
                     await new Promise(resolve => reader.onload = resolve);
                     const base64Content = reader.result.split(',')[1];
                     const path = file.webkitRelativePath || file.name;
                     const normalizedPath = (path.toLowerCase() === 'арт.png' || path.toLowerCase() === 'art.png') ? 'preview.png' : path;
-                    const isPaintFile = normalizedPath.toLowerCase().endswith('.png') || normalizedPath.toLowerCase().endswith('.pdn');
+                    const isPaintFile = normalizedPath.toLowerCase().endsWith('.png') || normalizedPath.toLowerCase().endsWith('.pdn');
                     const uploadPath = isSingleZip ? `${encodeURIComponent(projectName)}/${encodeURIComponent(normalizedPath)}` : 
                                       onlyPaintFiles ? `${encodeURIComponent(projectName)}/${encodeURIComponent(normalizedPath)}` : 
                                       `${encodeURIComponent(projectName)}/${isPaintFile ? 'Итог' : 'other'}/${encodeURIComponent(normalizedPath)}`;
