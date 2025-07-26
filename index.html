@@ -795,7 +795,7 @@
             try {
                 const fileMetadata = [];
                 const isSingleZip = projectFiles.length === 1 && projectFiles[0] && projectFiles[0].name && projectFiles[0].name.endsWith('.zip');
-                const onlyPaintFiles = !isSingleZip && projectFiles.every(f => f && f.name && (f.name.toLowerCase().endsWith('.png') || f.name.toLowerCase().endsWith('.pdn')));
+                const onlyPaintFiles = !isSingleZip && projectFiles.every(f => f && f.name && (f.name.toLowerCase().endswith('.png') || f.name.toLowerCase().endswith('.pdn')));
 
                 if (previewFile) {
                     projectFiles = projectFiles.filter(f => f && f.name && f.name !== previewFile.name);
@@ -816,22 +816,50 @@
                     const base64Content = reader.result.split(',')[1];
                     const path = file.webkitRelativePath || file.name;
                     const normalizedPath = (path.toLowerCase() === 'арт.png' || path.toLowerCase() === 'art.png') ? 'preview.png' : path;
-                    const isPaintFile = normalizedPath.toLowerCase().endsWith('.png') || normalizedPath.toLowerCase().endsWith('.pdn');
+                    const isPaintFile = normalizedPath.toLowerCase().endswith('.png') || normalizedPath.toLowerCase().endswith('.pdn');
                     const uploadPath = isSingleZip ? `${encodeURIComponent(projectName)}/${encodeURIComponent(normalizedPath)}` : 
                                       onlyPaintFiles ? `${encodeURIComponent(projectName)}/${encodeURIComponent(normalizedPath)}` : 
                                       `${encodeURIComponent(projectName)}/${isPaintFile ? 'Итог' : 'other'}/${encodeURIComponent(normalizedPath)}`;
+
+                    // Проверка существования файла
+                    let sha = null;
+                    try {
+                        const checkFileResponse = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/${uploadPath}`, {
+                            headers: {
+                                'Authorization': `Bearer ${githubToken}`,
+                                'Accept': 'application/vnd.github.v3+json'
+                            }
+                        });
+                        if (checkFileResponse.status === 200) {
+                            const fileData = await checkFileResponse.json();
+                            sha = fileData.sha;
+                            addLog(`Файл ${normalizedPath} уже существует, будет обновлён (sha: ${sha})`);
+                        } else if (checkFileResponse.status !== 404) {
+                            addLog(`Ошибка проверки существования ${normalizedPath}: ${checkFileResponse.statusText}`);
+                            throw new Error(`Failed to check file existence: ${checkFileResponse.statusText}`);
+                        }
+                    } catch (error) {
+                        addLog(`Ошибка проверки существования ${normalizedPath}: ${error.message}`);
+                        throw error;
+                    }
+
+                    const uploadBody = {
+                        message: `Add ${normalizedPath} to ${projectName}`,
+                        content: base64Content
+                    };
+                    if (sha) {
+                        uploadBody.sha = sha;
+                    }
+
                     const uploadResponse = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/${uploadPath}`, {
                         method: 'PUT',
                         headers: {
                             'Authorization': `Bearer ${githubToken}`,
                             'Accept': 'application/vnd.github.v3+json'
                         },
-                        body: JSON.stringify({
-                            message: `Add ${normalizedPath} to ${projectName}`,
-                            content: base64Content
-                        })
+                        body: JSON.stringify(uploadBody)
                     });
-                    if (uploadResponse.status !== 201) {
+                    if (uploadResponse.status !== 201 && uploadResponse.status !== 200) {
                         const errorDetails = await uploadResponse.json();
                         if (responseDiv) responseDiv.innerText = `Ошибка загрузки ${normalizedPath}: ${uploadResponse.statusText} (${JSON.stringify(errorDetails)})`;
                         addLog(`Ошибка загрузки ${normalizedPath}: ${uploadResponse.statusText} (${JSON.stringify(errorDetails)})`);
