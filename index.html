@@ -550,8 +550,11 @@
                 });
                 if (response.status === 200) {
                     const contents = await response.json();
-                    const ul = document.getElementlyId('projects');
-                    if (!ul) return;
+                    const ul = document.getElementById('projects');
+                    if (!ul) {
+                        addLog('Ошибка: Элемент projects не найден');
+                        return;
+                    }
                     if (contents.length === 0 || (contents.length === 1 && contents[0].name === '.gitkeep')) {
                         ul.innerHTML = '<li>Нет проектов</li>';
                         addLog('Папка projects пуста');
@@ -754,9 +757,9 @@
                 addLog('Ошибка: Не загружены файлы');
                 return;
             }
-            if (!previewFile && !projectFiles.find(f => f && f.name && f.name.toLowerCase() === 'preview.png')) {
-                if (responseDiv) responseDiv.innerText = 'Ошибка: Загрузите файл preview.png.';
-                addLog('Ошибка: preview.png не загружен');
+            if (!previewFile && !projectFiles.find(f => f && f.name && (f.name.toLowerCase() === 'preview.png' || f.name.toLowerCase() === 'арт.png' || f.name.toLowerCase() === 'art.png'))) {
+                if (responseDiv) responseDiv.innerText = 'Ошибка: Загрузите файл preview.png, арт.png или art.png.';
+                addLog('Ошибка: Файл превью не загружен');
                 return;
             }
 
@@ -799,7 +802,6 @@
                     projectFiles.unshift(previewFile);
                 }
 
-                // Create project directory
                 await createDirectory(projectName);
                 if (!isSingleZip && !onlyPaintFiles) {
                     await createDirectory(`${projectName}/Итог`);
@@ -813,10 +815,11 @@
                     await new Promise(resolve => reader.onload = resolve);
                     const base64Content = reader.result.split(',')[1];
                     const path = file.webkitRelativePath || file.name;
-                    const isPaintFile = path.toLowerCase().endsWith('.png') || path.toLowerCase().endsWith('.pdn');
-                    const uploadPath = isSingleZip ? `${encodeURIComponent(projectName)}/${encodeURIComponent(path)}` : 
-                                      onlyPaintFiles ? `${encodeURIComponent(projectName)}/${encodeURIComponent(path)}` : 
-                                      `${encodeURIComponent(projectName)}/${isPaintFile ? 'Итог' : 'other'}/${encodeURIComponent(path)}`;
+                    const normalizedPath = (path.toLowerCase() === 'арт.png' || path.toLowerCase() === 'art.png') ? 'preview.png' : path;
+                    const isPaintFile = normalizedPath.toLowerCase().endsWith('.png') || normalizedPath.toLowerCase().endsWith('.pdn');
+                    const uploadPath = isSingleZip ? `${encodeURIComponent(projectName)}/${encodeURIComponent(normalizedPath)}` : 
+                                      onlyPaintFiles ? `${encodeURIComponent(projectName)}/${encodeURIComponent(normalizedPath)}` : 
+                                      `${encodeURIComponent(projectName)}/${isPaintFile ? 'Итог' : 'other'}/${encodeURIComponent(normalizedPath)}`;
                     const uploadResponse = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/${uploadPath}`, {
                         method: 'PUT',
                         headers: {
@@ -824,14 +827,14 @@
                             'Accept': 'application/vnd.github.v3+json'
                         },
                         body: JSON.stringify({
-                            message: `Add ${path} to ${projectName}`,
+                            message: `Add ${normalizedPath} to ${projectName}`,
                             content: base64Content
                         })
                     });
                     if (uploadResponse.status !== 201) {
                         const errorDetails = await uploadResponse.json();
-                        if (responseDiv) responseDiv.innerText = `Ошибка загрузки ${path}: ${uploadResponse.statusText} (${JSON.stringify(errorDetails)})`;
-                        addLog(`Ошибка загрузки ${path}: ${uploadResponse.statusText} (${JSON.stringify(errorDetails)})`);
+                        if (responseDiv) responseDiv.innerText = `Ошибка загрузки ${normalizedPath}: ${uploadResponse.statusText} (${JSON.stringify(errorDetails)})`;
+                        addLog(`Ошибка загрузки ${normalizedPath}: ${uploadResponse.statusText} (${JSON.stringify(errorDetails)})`);
                         showSection('projectManagementSection', ['loadingSection']);
                         if (createButton) {
                             createButton.disabled = false;
@@ -840,11 +843,11 @@
                         return;
                     }
                     fileMetadata.push({
-                        path: path,
+                        path: normalizedPath,
                         size_mb: (file.size / (1024 * 1024)).toFixed(2),
                         download_url: `https://raw.githubusercontent.com/Endermanik13/AurumBotFiles/main/${uploadPath}`
                     });
-                    addLog(`Файл ${path} загружен в ${uploadPath}`);
+                    addLog(`Файл ${normalizedPath} загружен в ${uploadPath}`);
                 }
                 if (progress) progress.style.width = '20%';
                 if (progressText) progressText.innerText = '20% (1/5 этапа)';
@@ -888,7 +891,7 @@
 
                 let workflowCompleted = false;
                 let workflowId = null;
-                for (let i = 0; i < 90; i++) {
+                for (let i = 0; i < 120; i++) {
                     const runsResponse = await fetch('https://api.github.com/repos/Endermanik13/AurumBotFiles/actions/runs', {
                         headers: {
                             'Authorization': `Bearer ${githubToken}`,
