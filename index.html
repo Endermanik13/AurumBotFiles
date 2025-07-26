@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Проекты AurumBot</title>
-    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" href="data:;base64,=">
     <style>
         body {
             font-family: 'Segoe UI', Arial, sans-serif;
@@ -246,7 +246,7 @@
             </div>
             <div id="projectForm">
                 <button onclick="showSection('projectManagementSection', ['projectForm'])">Управление проектами</button>
-                <input type="text" id="projectName" placeholder="Введите название проекта" required>
+                <input type="text" id="projectName" placeholder="Введите название проекта (латинские буквы, цифры, -, _)" required>
                 <label for="filesInput">Файлы или папка проекта:</label>
                 <div class="file-drop" id="filesDrop" ondragover="event.preventDefault();" ondrop="handleDrop(event, 'filesInput')" ondragenter="this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')">
                     Перетащите файлы, папку или ZIP сюда или кликните для выбора
@@ -291,20 +291,15 @@
         let previewFile = null;
         let zipDownloadUrl = '';
 
-        function addLog(message, sendToTelegram = false) {
+        function addLog(message) {
             const logContent = document.getElementById('logContent');
             if (logContent) {
                 const logEntry = document.createElement('p');
                 logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
                 logContent.appendChild(logEntry);
                 logContent.scrollTop = logContent.scrollHeight;
-            }
-            if (sendToTelegram) {
-                fetch('http://localhost:3000/send-log', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message })
-                }).catch(err => console.error('Ошибка отправки лога в Telegram:', err));
+            } else {
+                console.error('Log content element not found');
             }
         }
 
@@ -314,7 +309,7 @@
                 showSection.style.display = 'block';
                 addLog(`Переключение на секцию: ${showId}`);
             } else {
-                addLog(`Ошибка: Секция ${showId} не найдена`, true);
+                addLog(`Ошибка: Секция ${showId} не найдена`);
             }
             hideIds.forEach(id => {
                 const section = document.getElementById(id);
@@ -325,7 +320,11 @@
         function validateProjectName(name) {
             const invalidChars = /[^a-zA-Z0-9-_]/;
             if (invalidChars.test(name)) {
-                addLog('Ошибка: Название проекта должно содержать только латинские буквы, цифры, - или _', true);
+                addLog('Ошибка: Название проекта должно содержать только латинские буквы, цифры, - или _');
+                return false;
+            }
+            if (!name) {
+                addLog('Ошибка: Название проекта не может быть пустым');
                 return false;
             }
             return true;
@@ -334,7 +333,7 @@
         function updateFileList(inputId, listId, fileArray) {
             const list = document.getElementById(listId);
             if (!list) {
-                addLog(`Ошибка: Список ${listId} не найден`, true);
+                addLog(`Ошибка: Список ${listId} не найден`);
                 return;
             }
             list.innerHTML = '';
@@ -397,7 +396,7 @@
                     reader.readAsDataURL(file);
                     addLog(`Загружен файл превью: ${file.name}`);
                 } else {
-                    addLog('Ошибка: Превью должен быть PNG', true);
+                    addLog('Ошибка: Превью должен быть PNG');
                 }
             }
         }
@@ -426,12 +425,12 @@
             const errorDiv = document.getElementById('error');
             const loginButton = document.getElementById('loginButton');
             if (!errorDiv || !loginButton) {
-                addLog('Ошибка: Элементы loginForm не найдены', true);
+                addLog('Ошибка: Элементы loginForm не найдены');
                 return;
             }
             if (!githubToken) {
                 errorDiv.innerText = 'Введите GitHub токен.';
-                addLog('Ошибка: Не введён GitHub токен', true);
+                addLog('Ошибка: Не введён GitHub токен');
                 return;
             }
 
@@ -455,15 +454,15 @@
                         await loadProjectList();
                     } else {
                         errorDiv.innerText = 'Недействительный токен: не авторизован для Endermanik13.';
-                        addLog('Ошибка: Токен не для Endermanik13', true);
+                        addLog('Ошибка: Токен не для Endermanik13');
                     }
                 } else {
                     errorDiv.innerText = `Ошибка: ${response.statusText}`;
-                    addLog(`Ошибка авторизации: ${response.statusText}`, true);
+                    addLog(`Ошибка авторизации: ${response.statusText}`);
                 }
             } catch (error) {
                 errorDiv.innerText = `Ошибка: ${error.message}`;
-                addLog(`Ошибка авторизации: ${error.message}`, true);
+                addLog(`Ошибка авторизации: ${error.message}`);
             } finally {
                 loginButton.disabled = false;
             }
@@ -493,11 +492,11 @@
                     if (createResponse.status === 201) {
                         addLog('Папка projects успешно создана');
                     } else {
-                        addLog(`Ошибка создания папки projects: ${createResponse.statusText}`, true);
+                        addLog(`Ошибка создания папки projects: ${createResponse.statusText}`);
                     }
                 }
             } catch (error) {
-                addLog(`Ошибка проверки/создания папки projects: ${error.message}`, true);
+                addLog(`Ошибка проверки/создания папки projects: ${error.message}`);
             }
         }
 
@@ -525,12 +524,12 @@
                     if (createResponse.status === 201) {
                         addLog(`Директория ${path} создана`);
                     } else {
-                        addLog(`Ошибка создания директории ${path}: ${createResponse.statusText}`, true);
+                        addLog(`Ошибка создания директории ${path}: ${createResponse.statusText}`);
                         throw new Error(`Failed to create directory ${path}`);
                     }
                 }
             } catch (error) {
-                addLog(`Ошибка создания директории ${path}: ${error.message}`, true);
+                addLog(`Ошибка создания директории ${path}: ${error.message}`);
                 throw error;
             }
         }
@@ -538,7 +537,7 @@
         async function loadProjectList() {
             const projectList = document.getElementById('projectList');
             if (!projectList) {
-                addLog('Ошибка: projectList не найден', true);
+                addLog('Ошибка: projectList не найден');
                 return;
             }
             projectList.innerHTML = '<h3>Существующие проекты</h3><ul id="projects"></ul>';
@@ -582,7 +581,7 @@
                                     if (deleteJsonResponse.status === 200) {
                                         addLog(`JSON ${item.name} удалён`);
                                     } else {
-                                        addLog(`Ошибка удаления ${item.name}: ${deleteJsonResponse.statusText}`, true);
+                                        addLog(`Ошибка удаления ${item.name}: ${deleteJsonResponse.statusText}`);
                                     }
                                     continue;
                                 }
@@ -606,10 +605,10 @@
                     projectList.innerHTML = '<h3>Существующие проекты</h3><ul id="projects"><li>Нет проектов</li></ul>';
                     addLog('Папка projects отсутствует, создана пустая');
                 } else {
-                    addLog(`Ошибка загрузки проектов: ${response.statusText}`, true);
+                    addLog(`Ошибка загрузки проектов: ${response.statusText}`);
                 }
             } catch (error) {
-                addLog(`Ошибка загрузки проектов: ${error.message}`, true);
+                addLog(`Ошибка загрузки проектов: ${error.message}`);
             }
         }
 
@@ -638,7 +637,7 @@
                             })
                         });
                         if (deleteResponse.status !== 200) {
-                            addLog(`Ошибка удаления ${item.name} из ${projectName}: ${deleteResponse.statusText}`, true);
+                            addLog(`Ошибка удаления ${item.name} из ${projectName}: ${deleteResponse.statusText}`);
                             return;
                         }
                     }
@@ -657,14 +656,14 @@
                     })
                 });
                 if (jsonResponse.status !== 200 && jsonResponse.status !== 404) {
-                    addLog(`Ошибка удаления ${projectName}.json: ${jsonResponse.statusText}`, true);
+                    addLog(`Ошибка удаления ${projectName}.json: ${jsonResponse.statusText}`);
                     return;
                 }
 
                 addLog(`Проект ${projectName} удалён`);
                 await loadProjectList();
             } catch (error) {
-                addLog(`Ошибка удаления проекта ${projectName}: ${error.message}`, true);
+                addLog(`Ошибка удаления проекта ${projectName}: ${error.message}`);
                 showSection('projectManagementSection', ['loadingSection', 'previewSection', 'projectForm', 'completedSection', 'loginForm']);
             }
         }
@@ -697,7 +696,7 @@
             const responseDiv = document.getElementById('response');
             if (!projectName) {
                 if (responseDiv) responseDiv.innerText = 'Введите название проекта.';
-                addLog('Ошибка: Не указано название проекта', true);
+                addLog('Ошибка: Не указано название проекта');
                 return;
             }
             if (!validateProjectName(projectName)) {
@@ -706,7 +705,7 @@
             }
             if (projectFiles.length === 0) {
                 if (responseDiv) responseDiv.innerText = 'Загрузите хотя бы один файл.';
-                addLog('Ошибка: Не загружены файлы', true);
+                addLog('Ошибка: Не загружены файлы');
                 return;
             }
             showSection('previewSection', ['projectForm', 'projectManagementSection', 'loginForm', 'loadingSection', 'completedSection']);
@@ -742,22 +741,22 @@
 
             if (!projectName) {
                 if (responseDiv) responseDiv.innerText = 'Введите название проекта.';
-                addLog('Ошибка: Не указано название проекта', true);
+                addLog('Ошибка: Не указано название проекта');
                 return;
             }
             if (!validateProjectName(projectName)) {
                 if (responseDiv) responseDiv.innerText = 'Недопустимое название проекта.';
-                addLog('Ошибка: Недопустимое название проекта', true);
+                addLog('Ошибка: Недопустимое название проекта');
                 return;
             }
             if (projectFiles.length === 0) {
                 if (responseDiv) responseDiv.innerText = 'Загрузите хотя бы один файл.';
-                addLog('Ошибка: Не загружены файлы', true);
+                addLog('Ошибка: Не загружены файлы');
                 return;
             }
             if (!previewFile && !projectFiles.find(f => f && f.name && f.name.toLowerCase() === 'preview.png')) {
                 if (responseDiv) responseDiv.innerText = 'Ошибка: Загрузите файл preview.png.';
-                addLog('Ошибка: preview.png не загружен', true);
+                addLog('Ошибка: preview.png не загружен');
                 return;
             }
 
@@ -770,16 +769,16 @@
                 });
                 if (projectCheck.status === 200) {
                     if (responseDiv) responseDiv.innerText = `Ошибка: Проект "${projectName}" уже существует.`;
-                    addLog(`Ошибка: Проект "${projectName}" уже существует`, true);
+                    addLog(`Ошибка: Проект "${projectName}" уже существует`);
                     return;
                 } else if (projectCheck.status !== 404) {
                     if (responseDiv) responseDiv.innerText = `Ошибка проверки дублирования: ${projectCheck.statusText}`;
-                    addLog(`Ошибка проверки дублирования: ${projectCheck.statusText}`, true);
+                    addLog(`Ошибка проверки дублирования: ${projectCheck.statusText}`);
                     return;
                 }
             } catch (error) {
                 if (responseDiv) responseDiv.innerText = `Ошибка проверки дублирования: ${error.message}`;
-                addLog(`Ошибка проверки дублирования: ${error.message}`, true);
+                addLog(`Ошибка проверки дублирования: ${error.message}`);
                 return;
             }
 
@@ -801,10 +800,10 @@
                 }
 
                 // Create project directory
-                await createDirectory(projectName);
+                await personally_createDirectory(projectName);
                 if (!isSingleZip && !onlyPaintFiles) {
-                    await createDirectory(`${projectName}/Итог`);
-                    await createDirectory(`${projectName}/other`);
+                    await personally_createDirectory(`${projectName}/Итог`);
+                    await personally_createDirectory(`${projectName}/other`);
                 }
 
                 for (const file of projectFiles) {
@@ -832,7 +831,7 @@
                     if (uploadResponse.status !== 201) {
                         const errorDetails = await uploadResponse.json();
                         if (responseDiv) responseDiv.innerText = `Ошибка загрузки ${path}: ${uploadResponse.statusText} (${JSON.stringify(errorDetails)})`;
-                        addLog(`Ошибка загрузки ${path}: ${uploadResponse.statusText} (${JSON.stringify(errorDetails)})`, true);
+                        addLog(`Ошибка загрузки ${path}: ${uploadResponse.statusText} (${JSON.stringify(errorDetails)})`);
                         showSection('projectManagementSection', ['loadingSection']);
                         if (createButton) {
                             createButton.disabled = false;
@@ -873,7 +872,7 @@
 
                 if (dispatchResponse.status !== 204) {
                     if (responseDiv) responseDiv.innerText = `Ошибка запуска workflow: ${dispatchResponse.statusText}`;
-                    addLog(`Ошибка запуска workflow: ${dispatchResponse.statusText}`, true);
+                    addLog(`Ошибка запуска workflow: ${dispatchResponse.statusText}`);
                     showSection('projectManagementSection', ['loadingSection']);
                     if (createButton) {
                         createButton.disabled = false;
@@ -898,7 +897,7 @@
                     });
                     if (runsResponse.status !== 200) {
                         if (responseDiv) responseDiv.innerHTML = `Ошибка проверки workflow: ${runsResponse.statusText}. <a href="https://github.com/Endermanik13/AurumBotFiles/actions" target="_blank">Проверить логи Actions</a>`;
-                        addLog(`Ошибка проверки workflow: ${runsResponse.statusText}`, true);
+                        addLog(`Ошибка проверки workflow: ${runsResponse.statusText}`);
                         showSection('projectManagementSection', ['loadingSection']);
                         if (createButton) {
                             createButton.disabled = false;
@@ -923,7 +922,7 @@
                                 workflowCompleted = true;
                             } else {
                                 if (responseDiv) responseDiv.innerHTML = `Ошибка: Workflow завершился с ошибкой (${runData.conclusion}). <a href="https://github.com/Endermanik13/AurumBotFiles/actions/runs/${workflowId}" target="_blank">Проверить логи Actions</a>`;
-                                addLog(`Ошибка: Workflow завершился с ошибкой (${runData.conclusion})`, true);
+                                addLog(`Ошибка: Workflow завершился с ошибкой (${runData.conclusion})`);
                                 showSection('projectManagementSection', ['loadingSection']);
                                 if (createButton) {
                                     createButton.disabled = false;
@@ -943,7 +942,7 @@
 
                 if (!workflowCompleted) {
                     if (responseDiv) responseDiv.innerHTML = `Ошибка: Workflow не завершился вовремя. <a href="https://github.com/Endermanik13/AurumBotFiles/actions" target="_blank">Проверить логи Actions</a>`;
-                    addLog('Ошибка: Workflow не завершился вовремя', true);
+                    addLog('Ошибка: Workflow не завершился вовремя');
                     showSection('projectManagementSection', ['loadingSection']);
                     if (createButton) {
                         createButton.disabled = false;
@@ -963,25 +962,9 @@
                                             Местоположение: <a href="https://github.com/Endermanik13/AurumBotFiles/tree/main/${encodeURIComponent(projectName)}" target="_blank">github.com/Endermanik13/AurumBotFiles/tree/main/${projectName}</a>`;
                 }
                 addLog(`Проект "${projectName}" создан, ZIP: ${zipDownloadUrl}`);
-
-                // Отправка в Telegram
-                try {
-                    const telegramResponse = await fetch('http://localhost:3000/send-zip', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ projectName, zipUrl: zipDownloadUrl })
-                    });
-                    if (telegramResponse.ok) {
-                        addLog('Ссылка отправлена в Telegram');
-                    } else {
-                        addLog(`Ошибка отправки в Telegram: ${telegramResponse.statusText}`, true);
-                    }
-                } catch (error) {
-                    addLog(`Ошибка отправки в Telegram: ${error.message}`, true);
-                }
             } catch (error) {
                 if (responseDiv) responseDiv.innerHTML = `Ошибка: ${error.message}. <a href="https://github.com/Endermanik13/AurumBotFiles/actions" target="_blank">Проверить логи Actions</a>`;
-                addLog(`Ошибка: ${error.message}`, true);
+                addLog(`Ошибка: ${error.message}`);
                 showSection('projectManagementSection', ['loadingSection']);
                 if (createButton) {
                     createButton.disabled = false;
@@ -995,7 +978,7 @@
                 window.open(zipDownloadUrl, '_blank');
                 addLog('Скачивание ZIP...');
             } else {
-                addLog('Ошибка: URL для скачивания ZIP не задан', true);
+                addLog('Ошибка: URL для скачивания ZIP не задан');
             }
         }
 
@@ -1005,10 +988,10 @@
                     await navigator.clipboard.writeText(zipDownloadUrl);
                     addLog('Ссылка на скачивание скопирована в буфер обмена');
                 } catch (error) {
-                    addLog(`Ошибка копирования ссылки: ${error.message}`, true);
+                    addLog(`Ошибка копирования ссылки: ${error.message}`);
                 }
             } else {
-                addLog('Ошибка: URL для скачивания ZIP не задан', true);
+                addLog('Ошибка: URL для скачивания ZIP не задан');
             }
         }
 
