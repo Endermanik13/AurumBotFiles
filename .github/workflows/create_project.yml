@@ -17,18 +17,20 @@ jobs:
       - name: Create project folder structure
         run: |
           mkdir -p "${PROJECT_NAME}" "projects"
-          echo "$FILE_METADATA" > file_metadata.json
-          PREVIEW_EXISTS=$(python -c "import json; with open('file_metadata.json') as f: files = json.load(f); print('true' if any(f['path'].lower() == 'preview.png' for f in files) else 'false')")
+          echo "${FILE_METADATA}" > file_metadata.json
+          python -c "import json; with open('file_metadata.json', 'r', encoding='utf-8') as f: files = json.load(f); print('true' if any(f['path'].lower() in ['preview.png', 'арт.png', 'art.png'] for f in files) else 'false')" > preview_check.txt
+          PREVIEW_EXISTS=$(cat preview_check.txt)
           if [ "$PREVIEW_EXISTS" != "true" ]; then
-            echo "Error: preview.png not provided"
+            echo "Error: preview.png, арт.png or art.png not provided"
             exit 1
           fi
-          ONLY_PAINT_FILES=$(python -c "import json; with open('file_metadata.json') as f: files = json.load(f); print('true' if all(f['path'].lower().endswith(('.png', '.pdn')) for f in files if f['path'].lower() != 'preview.png') else 'false')")
-          python create_project_json.py "${PROJECT_NAME}" "$FILE_METADATA" || { echo "Failed to create JSON"; exit 1; }
+          python -c "import json; with open('file_metadata.json', 'r', encoding='utf-8') as f: files = json.load(f); print('true' if all(f['path'].lower().endswith(('.png', '.pdn')) for f in files if f['path'].lower() not in ['preview.png', 'арт.png', 'art.png']) else 'false')" > paint_files_check.txt
+          ONLY_PAINT_FILES=$(cat paint_files_check.txt)
+          python create_project_json.py "${PROJECT_NAME}" "${FILE_METADATA}" || { echo "Failed to create JSON"; exit 1; }
           if [ "$IS_SINGLE_ZIP" = "true" ]; then
             zip -r "${PROJECT_NAME}/Archive.zip" "${PROJECT_NAME}" || { echo "Failed to create ZIP"; exit 1; }
           elif [ "$ONLY_PAINT_FILES" = "true" ]; then
-            zip -r "${PROJECT_NAME}/Archive.zip" "${PROJECT_NAME}" -x "${PROJECT_NAME}/preview.png" || { echo "Failed to create ZIP"; exit 1; }
+            zip -r "${PROJECT_NAME}/Archive.zip" "${PROJECT_NAME}" -x "${PROJECT_NAME}/preview.png" "${PROJECT_NAME}/арт.png" "${PROJECT_NAME}/art.png" || { echo "Failed to create ZIP"; exit 1; }
           else
             mkdir -p "${PROJECT_NAME}/Итог" "${PROJECT_NAME}/other"
             mv "${PROJECT_NAME}"/*.png "${PROJECT_NAME}/Итог" 2>/dev/null || true
