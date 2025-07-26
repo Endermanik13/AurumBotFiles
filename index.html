@@ -619,6 +619,7 @@
             if (!confirm(`Удалить проект "${projectName}"?`)) return;
             addLog(`Удаление проекта ${projectName}...`);
             try {
+                // Удаление содержимого папки проекта
                 const folderContents = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/${encodeURIComponent(projectName)}`, {
                     headers: {
                         'Authorization': `Bearer ${githubToken}`,
@@ -643,10 +644,15 @@
                             addLog(`Ошибка удаления ${item.name} из ${projectName}: ${deleteResponse.statusText}`);
                             return;
                         }
+                        addLog(`Удалён файл ${item.name} из ${projectName}`);
                     }
                     addLog(`Содержимое папки ${projectName} удалено`);
+                } else if (folderContents.status !== 404) {
+                    addLog(`Ошибка проверки папки ${projectName}: ${folderContents.statusText}`);
+                    return;
                 }
 
+                // Удаление JSON-файла
                 const jsonResponse = await fetch(`https://api.github.com/repos/Endermanik13/AurumBotFiles/contents/projects/${encodeURIComponent(projectName)}.json`, {
                     method: 'DELETE',
                     headers: {
@@ -658,12 +664,16 @@
                         sha: jsonSha
                     })
                 });
-                if (jsonResponse.status !== 200 && jsonResponse.status !== 404) {
+                if (jsonResponse.status === 200) {
+                    addLog(`JSON ${projectName}.json удалён`);
+                } else if (jsonResponse.status === 404) {
+                    addLog(`JSON ${projectName}.json уже отсутствует`);
+                } else {
                     addLog(`Ошибка удаления ${projectName}.json: ${jsonResponse.statusText}`);
                     return;
                 }
 
-                addLog(`Проект ${projectName} удалён`);
+                addLog(`Проект ${projectName} полностью удалён`);
                 await loadProjectList();
             } catch (error) {
                 addLog(`Ошибка удаления проекта ${projectName}: ${error.message}`);
